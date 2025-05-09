@@ -1,5 +1,7 @@
 # Geekbench Data Scraper
 
+[中文](README-zh.md)
+
 This is a Python script designed to scrape Geekbench 5 CPU benchmark result data from the Geekbench Browser website and store it in a local SQLite database. It supports resuming from where it left off, fetching missing IDs, fetching specific IDs, fetching rows with all NULL data, and organizing/compressing raw data files.
 
 **Note:** This script requires a Geekbench Browser account to log in and fetch data.
