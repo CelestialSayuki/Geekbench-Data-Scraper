@@ -136,4 +136,6 @@ The primary data table in `geekbench_5_data.db` is named `data`. Its column name
 
 ## License
 
-This project currently has no explicit license. Please add one as appropriate.
+This project is licensed under the terms of the GNU Affero General Public License v3.0 (AGPL-3.0).
+
+See the [LICENSE](LICENSE) file for the full license details.
