@@ -132,3 +132,9 @@ python gb5.py [选项]
 * 抓取速度取决于网络连接、Geekbench 网站的响应速度以及设置的多进程数量。
 * 过高的并发进程数可能会导致 Geekbench 网站的阻止或认证错误。
 * 原始数据的组织和压缩是可选的，但对于管理大量 `.gb5` 文件非常有用。
+
+## 许可证
+
+本项目遵循 GNU Affero General Public License v3.0 (AGPL-3.0) 许可。
+
+您可以查看 [LICENSE](LICENSE) 文件以获取完整的许可信息。
