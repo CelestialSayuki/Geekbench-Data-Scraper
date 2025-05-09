@@ -616,11 +616,6 @@ def organize_loose_raw_files(data_dir='raw_data_5', group_size=5000):
             target_subfolder_path = get_raw_data_subfolder(file_id, group_size)
             target_file_path = os.path.join(target_subfolder_path, entry)
 
-            if os.path.exists(target_file_path):
-                 print(f"\nWarning: File {entry} already exists in target folder {target_subfolder_path}. Skipping move.")
-                 errors_count += 1
-                 continue
-
             os.makedirs(target_subfolder_path, exist_ok=True)
 
             shutil.move(entry_path, target_file_path)
@@ -972,7 +967,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', action='store_true', help='Run Organization: Organize loose raw .gb5 files into subfolders.')
     args = parser.parse_args()
 
-    print("Geekbench Data Scraper - Version 1.2")
+    print("Geekbench Data Scraper - Version 1.2.1")
 
     try:
         if args.c:
