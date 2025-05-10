@@ -742,6 +742,9 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
     print("Compression process finished.")
     print(f"Compressed and deleted {compressed_folders_count} folders in this run.")
 
+spinner_chars = ['|', '/', '-', '\\']
+spinner_index = 0
+
 def spinner_task(stop_event, message):
     global spinner_index
     while not stop_event.is_set():
