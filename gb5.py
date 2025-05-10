@@ -364,11 +364,6 @@ def validate_missing_ids():
         if conn:
             conn.close()
 
-def print_organize_progress(current, total):
-    percent = f"{(current / total) * 100:.1f}" if total > 0 else "0.0"
-    sys.stdout.write(f'\rOrganizing loose files: ({current}/{total}) {percent}% ')
-    sys.stdout.flush()
-
 def print_compress_progress(current_end_id, max_end_id, current_folder_range, bar_length=30):
     progress_ratio = (current_end_id / max_end_id) if max_end_id > 0 else 0
     progress_ratio = max(0.0, min(1.0, progress_ratio))
@@ -596,22 +591,35 @@ def organize_loose_raw_files(data_dir='raw_data_5', group_size=5000):
                  int(entry[:-4])
                  loose_files_list.append(entry)
              except ValueError:
-                 print(f"Skipping invalid loose filename (not an integer ID): {entry}")
+                 print(f"\nSkipping invalid loose filename (not an integer ID): {entry}")
+                 continue
 
     total_loose_files = len(loose_files_list)
     if total_loose_files == 0:
-        print("No loose .gb5 files found directly in the base directory.")
+        print("No loose .gb5 files found directly in the base directory. Skipping organization.")
         return
 
     organized_count = 0
     errors_count = 0
+
+    print(f"Found {total_loose_files} potentially loose .gb5 files.")
 
     for i, entry in enumerate(loose_files_list):
         entry_path = os.path.join(data_dir, entry)
         print_organize_progress(i, total_loose_files)
 
         try:
-            file_id = int(entry[:-4])
+            if not os.path.exists(entry_path):
+                 errors_count += 1
+                 continue
+
+            file_id_str = entry[:-4]
+            try:
+                file_id = int(file_id_str)
+            except ValueError:
+                 print(f"\nError: Invalid filename {entry} encountered during move loop.")
+                 errors_count += 1
+                 continue
 
             target_subfolder_path = get_raw_data_subfolder(file_id, group_size)
             target_file_path = os.path.join(target_subfolder_path, entry)
@@ -621,10 +629,6 @@ def organize_loose_raw_files(data_dir='raw_data_5', group_size=5000):
             shutil.move(entry_path, target_file_path)
             organized_count += 1
 
-        except ValueError:
-            print(f"\nError: Invalid filename {entry} encountered during move loop.")
-            errors_count += 1
-            continue
         except OSError as e:
             print(f"\nError moving file {entry_path} to {target_subfolder_path}: {e}")
             errors_count += 1
@@ -638,18 +642,31 @@ def organize_loose_raw_files(data_dir='raw_data_5', group_size=5000):
     sys.stdout.write(" Finished\n")
     sys.stdout.flush()
 
-    if errors_count > 0:
-         print(f"Organization finished with {errors_count} errors/skipped files.")
+    print(f"Organization finished. Organized {organized_count} files, encountered {errors_count} errors/skipped files.")
+
+def print_organize_progress(current, total):
+    percent = f"{(current / total) * 100:.1f}" if total > 0 else "0.0"
+    sys.stdout.write(f'\rOrganizing loose files: ({current}/{total}) {percent}% ')
+    sys.stdout.flush()
 
 def compress_raw_data(data_dir='raw_data_5', group_size=5000):
-    print(f"Starting compression of raw data in {data_dir}...")
+    print(f"Starting compression of raw data in {data_dir} based on database content...")
     if not os.path.exists(data_dir):
         print(f"Raw data directory {data_dir} not found. Skipping compression.")
         return
 
-    highest_id_in_directory = 0
-    all_subfolders = []
+    max_id_in_db = get_last_id_from_db()
+    if max_id_in_db is None or max_id_in_db == 0:
+        print("Database is empty or contains no valid IDs. No folders to compress.")
+        return
 
+    print(f"Highest ID found in database: {max_id_in_db}")
+
+    compress_up_to_id = (max_id_in_db // group_size) * group_size
+    if max_id_in_db > 0 and max_id_in_db % group_size == 0:
+         pass
+
+    all_subfolders = []
     for entry in os.listdir(data_dir):
         entry_path = os.path.join(data_dir, entry)
         if os.path.isdir(entry_path):
@@ -658,29 +675,9 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
                 start_id = int(start_id_str)
                 end_id = int(end_id_str)
                 if start_id > 0 and end_id > start_id and end_id - start_id + 1 == group_size:
-                    all_subfolders.append((start_id, end_id, entry_path, entry))
-
-                    for filename in os.listdir(entry_path):
-                         if filename.endswith('.gb5'):
-                             try:
-                                 file_id = int(filename[:-4])
-                                 if file_id >= start_id and file_id <= end_id:
-                                     if file_id > highest_id_in_directory:
-                                          highest_id_in_directory = file_id
-                             except ValueError:
-                                 continue
+                     all_subfolders.append((start_id, end_id, entry_path, entry))
             except ValueError:
                 continue
-
-    if highest_id_in_directory == 0:
-        print("No .gb5 files found in standard subfolders for compression.")
-        return
-
-    compress_up_to_id = (highest_id_in_directory // group_size) * group_size
-    if highest_id_in_directory % group_size == 0 and highest_id_in_directory > 0:
-         compress_up_to_id = highest_id_in_directory - group_size
-         if compress_up_to_id < 0:
-             compress_up_to_id = 0
 
     folders_to_compress = sorted([
         (start_id, end_id, folder_path, folder_name)
@@ -689,12 +686,11 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
     ])
 
     if not folders_to_compress:
-        print(f"Highest ID found: {highest_id_in_directory}. No full 5000-ID folders to compress up to {compress_up_to_id}.")
+        print(f"Highest database ID is {max_id_in_db}. No full {group_size}-ID folders to compress up to {compress_up_to_id}.")
         return
 
     max_compress_end_id = compress_up_to_id
 
-    print(f"Highest ID found across all raw data subfolders: {highest_id_in_directory}")
     print(f"Will compress {len(folders_to_compress)} folders with End ID up to: {max_compress_end_id}")
 
     compressed_folders_count = 0
@@ -706,12 +702,13 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
 
         try:
             if os.path.exists(zip_filename):
-                 try:
-                     if os.path.exists(folder_path):
+                 if os.path.exists(folder_path):
+                     try:
                          shutil.rmtree(folder_path)
                          compressed_folders_count += 1
-                 except OSError as e:
-                     print(f"\nError deleting folder {os.path.basename(folder_path)}: {e}")
+                         print(f"\nFolder {os.path.basename(folder_path)} deleted as corresponding zip already exists.")
+                     except OSError as e:
+                         print(f"\nError deleting folder {os.path.basename(folder_path)} when zip existed: {e}")
                  continue
 
             if not os.path.exists(folder_path) or not os.listdir(folder_path):
@@ -732,7 +729,7 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
                     shutil.rmtree(folder_path)
                     compressed_folders_count += 1
                 except OSError as e:
-                     print(f"\nError deleting folder {os.path.basename(folder_path)}: {e}")
+                     print(f"\nError deleting folder {os.path.basename(folder_path)} after compression: {e}")
             else:
                  print(f"\nCompression successful, but no .gb5 files were found in folder {os.path.basename(folder_path)}. Folder not deleted.")
 
@@ -744,9 +741,6 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
 
     print("Compression process finished.")
     print(f"Compressed and deleted {compressed_folders_count} folders in this run.")
-
-spinner_chars = ['|', '/', '-', '\\']
-spinner_index = 0
 
 def spinner_task(stop_event, message):
     global spinner_index
@@ -967,7 +961,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', action='store_true', help='Run Organization: Organize loose raw .gb5 files into subfolders.')
     args = parser.parse_args()
 
-    print("Geekbench Data Scraper - Version 1.2.1")
+    print("Geekbench Data Scraper - Version 1.2.2")
 
     try:
         if args.c:
