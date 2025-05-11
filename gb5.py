@@ -649,7 +649,7 @@ def print_organize_progress(current, total):
     sys.stdout.write(f'\rOrganizing loose files: ({current}/{total}) {percent}% ')
     sys.stdout.flush()
 
-def compress_raw_data(data_dir='raw_data_5', group_size=5000):
+def compress_raw_data(data_dir='raw_data_ai', group_size=5000):
     print(f"Starting compression of raw data in {data_dir} based on database content...")
     if not os.path.exists(data_dir):
         print(f"Raw data directory {data_dir} not found. Skipping compression.")
@@ -715,26 +715,45 @@ def compress_raw_data(data_dir='raw_data_5', group_size=5000):
                 print(f"\nWarning: Folder {os.path.basename(folder_path)} is missing or empty. Skipping compression.")
                 continue
 
-            with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
-                files_added_to_zip = 0
-                for filename in os.listdir(folder_path):
-                    if filename.endswith('.gb5'):
-                        file_path = os.path.join(folder_path, filename)
-                        if os.path.exists(file_path):
-                            zipf.write(file_path, filename)
-                            files_added_to_zip += 1
+            try:
+                with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+                    files_added_to_zip = 0
+                    for filename in os.listdir(folder_path):
+                        if filename.endswith('.gbml'):
+                            file_path = os.path.join(folder_path, filename)
+                            if os.path.exists(file_path):
+                                zipf.write(file_path, filename)
+                                files_added_to_zip += 1
 
-            if files_added_to_zip > 0:
-                try:
-                    shutil.rmtree(folder_path)
-                    compressed_folders_count += 1
-                except OSError as e:
-                     print(f"\nError deleting folder {os.path.basename(folder_path)} after compression: {e}")
-            else:
-                 print(f"\nCompression successful, but no .gb5 files were found in folder {os.path.basename(folder_path)}. Folder not deleted.")
+                if files_added_to_zip > 0:
+                    try:
+                        shutil.rmtree(folder_path)
+                        compressed_folders_count += 1
+                    except OSError as e:
+                         print(f"\nError deleting folder {os.path.basename(folder_path)} after compression: {e}")
+                else:
+                     print(f"\nCompression successful, but no .gbml files were found in folder {os.path.basename(folder_path)}. Folder not deleted.")
+
+            except KeyboardInterrupt:
+                 print(f"\nCompression interrupted for folder {os.path.basename(folder_path)}. Cleaning up incomplete zip file...")
+                 if os.path.exists(zip_filename):
+                     try:
+                         os.remove(zip_filename)
+                         print(f"Deleted incomplete zip file: {os.path.basename(zip_filename)}")
+                     except OSError as e:
+                         print(f"Error deleting incomplete zip file {os.path.basename(zip_filename)}: {e}")
+                 raise
+
 
         except Exception as e:
             print(f"\nError compressing folder {os.path.basename(folder_path)}: {e}. Original folder NOT deleted.")
+            if os.path.exists(zip_filename):
+                 try:
+                     os.remove(zip_filename)
+                     print(f"Deleted potentially incomplete zip file due to error: {os.path.basename(zip_filename)}")
+                 except OSError as cleanup_e:
+                     print(f"Error during cleanup of incomplete zip file {os.path.basename(zip_filename)}: {cleanup_e}")
+
 
     if folders_to_compress:
          finish_compress_progress(max_compress_end_id)
