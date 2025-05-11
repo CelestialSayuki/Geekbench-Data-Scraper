@@ -964,7 +964,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', action='store_true', help='Run Organization: Organize loose raw .gb5 files into subfolders.')
     args = parser.parse_args()
 
-    print("Geekbench Data Scraper - Version 1.2.2")
+    print("Geekbench 5 Data Scraper - Version 1.2.3")
 
     try:
         if args.c:
@@ -1008,69 +1008,77 @@ if __name__ == '__main__':
              sys.exit(1)
 
         pool_processes = 6
-        with multiprocessing.Pool(processes=pool_processes) as pool:
+        try:
+            with multiprocessing.Pool(processes=pool_processes) as pool:
 
-            print("\n--- Phase 1: Running Database Validation and Fetching Missing IDs ---")
-            missing_ids_found = validate_missing_ids()
-            if missing_ids_found:
-                 execute_finite_phase(
-                     missing_ids_found, pool, authenticated_cookies_ref,
-                     max_phase_relogin_attempts=3, phase_name="Phase 1: Fetching Missing IDs"
-                 )
-            else:
-                print("\nNo missing IDs found by validation.")
-            print("--- Phase 1 finished ---")
-
-            specific_ids_to_fetch = []
-            if args.specific_ids:
-                specific_ids_str_list = [id_str.strip() for id_str in args.specific_ids.split(',')]
-                invalid_inputs = []
-                for id_str in specific_ids_str_list:
-                    if id_str:
-                        try:
-                            specific_ids_to_fetch.append(int(id_str))
-                        except ValueError:
-                            invalid_inputs.append(id_str)
-                if invalid_inputs:
-                    print(f"Warning: Skipping invalid specific ID inputs: {', '.join(invalid_inputs)}")
-
-                specific_ids_to_fetch = sorted(list(set(specific_ids_to_fetch)))
-
-                if specific_ids_to_fetch:
-                    execute_finite_phase(
-                        specific_ids_to_fetch, pool, authenticated_cookies_ref,
-                        max_phase_relogin_attempts=3, phase_name="Phase X: Fetching Specific IDs"
-                    )
+                print("\n--- Phase 1: Running Database Validation and Fetching Missing IDs ---")
+                missing_ids_found = validate_missing_ids()
+                if missing_ids_found:
+                     execute_finite_phase(
+                         missing_ids_found, pool, authenticated_cookies_ref,
+                         max_phase_relogin_attempts=3, phase_name="Phase 1: Fetching Missing IDs"
+                     )
                 else:
-                    print("\nNo valid specific IDs provided for Phase X.")
-            else:
-                print("\n-s argument not provided, skipping Phase X.")
+                    print("\nNo missing IDs found by validation.")
+                print("--- Phase 1 finished ---")
 
-            ids_to_refetch_nulls = []
-            if args.N:
-                print("\n--- Phase N: Finding and Fetching Rows with All NULL Data ---")
-                ids_to_refetch_nulls = find_all_null_rows_ids(DATA_COLUMNS)
+                specific_ids_to_fetch = []
+                if args.specific_ids:
+                    specific_ids_str_list = [id_str.strip() for id_str in args.specific_ids.split(',')]
+                    invalid_inputs = []
+                    for id_str in specific_ids_str_list:
+                        if id_str:
+                            try:
+                                specific_ids_to_fetch.append(int(id_str))
+                            except ValueError:
+                                invalid_inputs.append(id_str)
+                    if invalid_inputs:
+                        print(f"Warning: Skipping invalid specific ID inputs: {', '.join(invalid_inputs)}")
 
-                if ids_to_refetch_nulls:
-                    execute_finite_phase(
-                        ids_to_refetch_nulls, pool, authenticated_cookies_ref,
-                        max_phase_relogin_attempts=3, phase_name="Phase N: Fetching All-NULL Rows"
-                    )
+                    specific_ids_to_fetch = sorted(list(set(specific_ids_to_fetch)))
+
+                    if specific_ids_to_fetch:
+                        execute_finite_phase(
+                            specific_ids_to_fetch, pool, authenticated_cookies_ref,
+                            max_phase_relogin_attempts=3, phase_name="Phase X: Fetching Specific IDs"
+                        )
+                    else:
+                        print("\nNo valid specific IDs provided for Phase X.")
                 else:
-                    print("\nNo rows found with all specified data columns as NULL, skipping Phase N fetching.")
-                print("--- Phase N finished ---")
-            else:
-                print("\n-N argument not provided, skipping Phase N.")
+                    print("\n-s argument not provided, skipping Phase X.")
 
-            run_phase2 = args.C or (not args.N and not args.specific_ids)
+                ids_to_refetch_nulls = []
+                if args.N:
+                    print("\n--- Phase N: Finding and Fetching Rows with All NULL Data ---")
+                    ids_to_refetch_nulls = find_all_null_rows_ids(DATA_COLUMNS)
 
-            if run_phase2:
-                 execute_continuous_scraping_phase(
-                    pool, authenticated_cookies_ref,
-                    max_phase_relogin_attempts=5
-                 )
-            else:
-                print("\nPhase 2 (Continuous Scraping) skipped based on arguments (-N or -s used without -C).")
+                    if ids_to_refetch_nulls:
+                        execute_finite_phase(
+                            ids_to_refetch_nulls, pool, authenticated_cookies_ref,
+                            max_phase_relogin_attempts=3, phase_name="Phase N: Fetching All-NULL Rows"
+                        )
+                    else:
+                        print("\nNo rows found with all specified data columns as NULL, skipping Phase N fetching.")
+                    print("--- Phase N finished ---")
+                else:
+                    print("\n-N argument not provided, skipping Phase N.")
+
+                run_phase2 = args.C or (not args.N and not args.specific_ids)
+
+                if run_phase2:
+                     execute_continuous_scraping_phase(
+                        pool, authenticated_cookies_ref,
+                        max_phase_relogin_attempts=5
+                     )
+                else:
+                    print("\nPhase 2 (Continuous Scraping) skipped based on arguments (-N or -s used without -C).")
+
+        except KeyboardInterrupt:
+            print("\nCtrl+C detected. Terminating worker processes...")
+            pool.terminate()
+            pool.join()
+            print("Worker processes terminated.")
+
 
     except Exception as e:
         print(f"\nAn unexpected critical error occurred in the main process: {e}")
