@@ -10,20 +10,14 @@ This is a Python script designed to scrape Geekbench 5/6/AI benchmark result dat
 
 * **Login and Session Management:** Logs into Geekbench Browser using provided credentials and saves/loads session cookies for authentication.
 * **Database Integration:** Stores scraped benchmark data in a local SQLite database.
-* **Database Initialization and Versioning:** Automatically initializes the database table and includes a basic versioning mechanism (note: the data table will be recreated if the version doesn't match).
-* **NULL Row Cleanup:** Added a cleanup step to remove contiguous rows from the highest ID downwards that consist entirely of NULL values. This helps in cleaning up entries corresponding to 404s or incomplete fetches at the end of the data range.
 * **Resume Capability:** Can resume fetching new benchmark results from the highest ID already present in the database.
-* **Missing ID Validation and Fetching (Phase 1):** Checks for gaps in IDs within the database (missing IDs less than or equal to the current highest ID) and attempts to fetch data for these missing IDs.
 * **Fetch All NULL Data Rows (Phase N):** Identifies rows in the database where all specified data columns are NULL and attempts to refetch the data for these IDs.
 * **Fetch Specific IDs (Phase X):** Allows the user to specify one or more specific benchmark IDs to fetch via a command-line argument.
-* **Continuous Catch-up Scraping (Phase 2):** Starts fetching new benchmark results from the ID immediately following the highest ID in the database and continues scraping up to the currently available maximum ID on the browser.
-* **Continuous Sync Fetch (Phase 3):** When running in continuous mode, after fetching historical data up to the current maximum, the script transitions to a synchronization phase. It periodically checks the Geekbench Browser for newly added benchmark results and fetches them to keep the database up-to-date.
+* **Catch-up Scraping (Phase 2):** Starts fetching new benchmark results from the ID immediately following the highest ID in the database and continues scraping up to the currently available maximum ID on the browser.
+* **Sync Fetch (Phase 3):** When running in continuous mode, after fetching historical data up to the current maximum, the script transitions to a synchronization phase. It periodically checks the Geekbench Browser for newly added benchmark results and fetches them to keep the database up-to-date.
 * **Raw Data File Saving:** Saves the raw file for each benchmark result locally.
 * **Raw Data Organization:** Organizes scattered raw files from the main directory into subfolders grouped by ID range (e.g., `raw_data_5/1-5000`).
 * **Raw Data Compression:** Compresses subfolders of organized raw data files into `.zip` archives and deletes the original folders to save space.
-* **Multiprocess Fetching:** Utilizes multiprocessing to fetch data concurrently, improving efficiency.
-* **Enhanced Authentication Handling:** Improved logic for detecting and responding to authentication errors that may occur during data fetching phases, facilitating re-authentication.
-* **Progress Indicator:** Displays a simple progress indicator during fetching batches, file organization, and compression.
 
 ## Requirements
 
