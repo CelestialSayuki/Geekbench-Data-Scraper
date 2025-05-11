@@ -116,8 +116,7 @@ def login_and_get_cookies(username, password):
                 error_data = response.json()
                 print(f"Error response: {error_data}")
             except json.JSONDecodeError:
-                print("No JSON error response.")
-            print(f"Response headers: {response.headers}")
+                pass
             return None
     except requests.RequestException as e:
         print(f"An error occurred during login POST request: {e}")
@@ -255,9 +254,6 @@ def get_max_remote_id():
                     except ValueError:
                         print(f"Could not parse ID from href: {href}")
                         return None
-        else:
-            print("Could not find the first data row with a device link on the page.")
-            return None
     except requests.RequestException as e:
         print(f"Error fetching max remote ID page: {e}")
         return None
@@ -273,7 +269,6 @@ def cleanup_null_rows_from_top():
         c.execute('SELECT MAX(id) FROM data')
         highest_db_id = c.fetchone()[0]
         if highest_db_id is None or highest_db_id == 0:
-            print("Database is empty. No NULL row cleanup needed.")
             return
         all_null_ids = set(find_all_null_rows_ids(DATA_COLUMNS))
         if highest_db_id not in all_null_ids:
@@ -286,7 +281,6 @@ def cleanup_null_rows_from_top():
                 c.execute('DELETE FROM data WHERE id = ?', (current_id,))
                 deleted_count += 1
             else:
-                print(f"Stopped contiguous NULL row cleanup at ID {current_id} because it contains data.")
                 break
             current_id -= 1
         if deleted_count > 0:
@@ -338,7 +332,6 @@ def validate_missing_ids():
         c.execute('SELECT MAX(id) FROM data')
         max_id_in_db = c.fetchone()[0]
         if max_id_in_db is None or max_id_in_db == 0:
-            print("Database is empty or contains no valid IDs. No range to validate.")
             return []
         print(f"Checking for missing IDs between 1 and {max_id_in_db}...")
         c.execute('SELECT id FROM data ORDER BY id')
@@ -373,9 +366,6 @@ def finish_compress_progress(max_end_id):
     sys.stdout.flush()
 
 def get_raw_data_subfolder(id, group_size=5000):
-    if id <= 0:
-        print(f"Warning: Attempted to get subfolder for invalid ID: {id}")
-        return os.path.join('raw_data_ai', 'invalid_ids')
     start_id = ((id - 1) // group_size) * group_size + 1
     end_id = start_id + group_size - 1
     return os.path.join('raw_data_ai', f'{start_id}-{end_id}')
@@ -427,13 +417,10 @@ def fetch_data(count, cookies):
                     print(f"\nError saving raw data for ID {count} to file {raw_file_path}: {e}")
             except requests.HTTPError as e:
                 if e.response.status_code == 404:
-                     try:
-                         c.execute("INSERT OR REPLACE INTO data (id) VALUES (?)", (count,))
-                         conn.commit()
-                         print(f"ID {count} returned 404, marked as checked in DB with NULL data.")
-                     except sqlite3.Error as db_err:
-                         print(f"Database error marking ID {count} as checked (404): {db_err}")
-                     return '404'
+                    c.execute("INSERT OR REPLACE INTO data (id) VALUES (?)", (count,))
+                    conn.commit()
+                    print(f"ID {count} returned 404, marked as checked in DB with NULL data.")
+                    return '404'
                 elif e.response.status_code in [401, 403]:
                      print(f"\nAuthentication/Authorization error for ID {count}.")
                      return 'auth_error'
@@ -493,7 +480,6 @@ def fetch_data(count, cookies):
                 c.execute(sql, values)
                 conn.commit()
                 if error_occured_during_parsing:
-                    print(f"\nSuccessfully saved NULL/partial data for ID {count} after parsing errors. Returning other_error.")
                     return 'other_error'
                 else:
                     return 'success'
@@ -502,11 +488,9 @@ def fetch_data(count, cookies):
                 conn.rollback()
                 return 'other_error'
         else:
-             print(f"\nFailed to obtain raw data for ID {count} from local file or network.")
              try:
                  c.execute("INSERT OR IGNORE INTO data (id) VALUES (?)", (count,))
                  conn.commit()
-                 print(f"\nMarked ID {count} as attempted with NULL data.")
              except sqlite3.Error as db_err:
                  print(f"\nDatabase error marking ID {count} as attempted (no data): {db_err}")
              return 'other_error'
@@ -583,7 +567,6 @@ def compress_raw_data(data_dir='raw_data_ai', group_size=5000):
         return
     max_id_in_db = get_last_id_from_db()
     if max_id_in_db is None or max_id_in_db == 0:
-        print("Database is empty or contains no valid IDs. No folders to compress.")
         return
     print(f"Highest ID found in database: {max_id_in_db}")
     compress_up_to_id = (max_id_in_db // group_size) * group_size
@@ -621,7 +604,6 @@ def compress_raw_data(data_dir='raw_data_ai', group_size=5000):
                      try:
                          shutil.rmtree(folder_path)
                          compressed_folders_count += 1
-                         print(f"\nFolder {os.path.basename(folder_path)} deleted as corresponding zip already exists.")
                      except OSError as e:
                          print(f"\nError deleting folder {os.path.basename(folder_path)} when zip existed: {e}")
                  continue
@@ -642,8 +624,6 @@ def compress_raw_data(data_dir='raw_data_ai', group_size=5000):
                         compressed_folders_count += 1
                     except OSError as e:
                          print(f"\nError deleting folder {os.path.basename(folder_path)} after compression: {e}")
-                else:
-                     print(f"\nCompression successful, but no .gbml files were found in folder {os.path.basename(folder_path)}. Folder not deleted.")
             except KeyboardInterrupt:
                  print(f"\nCompression interrupted for folder {os.path.basename(folder_path)}. Cleaning up incomplete zip file...")
                  if os.path.exists(zip_filename):
@@ -738,7 +718,6 @@ def execute_finite_phase(phase_ids_list, pool, authenticated_cookies_ref, phase_
          print(f"\nWarning: {unprocessed_count} IDs could not be processed during {phase_name}.")
     else:
          print(f"\nAll {total_ids_for_phase} IDs for {phase_name} attempted.")
-    print(f"--- {phase_name} finished ---")
     return (len(processed_ids_in_phase_set), total_successful_fetches, total_failed_fetches, total_404_handled)
 
 def execute_continuous_scraping_phase(pool, authenticated_cookies_ref):
@@ -859,7 +838,6 @@ if __name__ == '__main__':
         if args.o:
             print("\n--- Organizing Loose Raw Files ---")
             organize_loose_raw_files(data_dir='raw_data_ai', group_size=5000)
-            print("--- Loose file organization finished ---")
         initialize_database()
         authenticated_cookies_ref = [None]
         loaded_cookies = load_cookies(COOKIE_FILE)
@@ -945,7 +923,6 @@ if __name__ == '__main__':
                      print("Pool not initialized unexpectedly. Cannot run Phase N fetching NULL rows.")
             else:
                 print("\nNo rows found with all specified data columns as NULL, skipping Phase N fetching.")
-            print("--- Phase N finished ---")
         else:
             print("\n-N argument not provided, skipping Phase N.")
         if run_continuous_process:
