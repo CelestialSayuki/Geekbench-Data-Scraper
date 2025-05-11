@@ -775,7 +775,6 @@ def execute_sync_fetch_phase(authenticated_cookies_ref):
             continue
         ids_to_fetch_sync = list(range(current_db_max_id + 1, max_remote_id + 1))
         if ids_to_fetch_sync:
-            print(f"\nFound {len(ids_to_fetch_sync)} new IDs to fetch ({ids_to_fetch_sync[0]} to {ids_to_fetch_sync[-1]})...")
             sync_current_id = ids_to_fetch_sync[0]
             successful_sync_fetches = 0
             failed_sync_fetches = 0
@@ -803,7 +802,6 @@ def execute_sync_fetch_phase(authenticated_cookies_ref):
             if spinner_thread and spinner_thread.is_alive():
                 stop_spinner_event.set()
                 spinner_thread.join()
-            print(f"\nFinished fetching new IDs during sync cycle.")
         else:
             for i in range(sync_interval, 0, -1):
                 sys.stdout.write(f'\rCurrent highest ID in database: {current_db_max_id} (Wait {i} second) ')
