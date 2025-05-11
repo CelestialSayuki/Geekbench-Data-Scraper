@@ -569,40 +569,32 @@ def organize_loose_raw_files(data_dir='raw_data_5', group_size=5000):
     if total_loose_files == 0:
         print("No loose .gbml files found directly in the base directory. Skipping organization.")
         return
-    organized_count = 0
-    errors_count = 0
     print(f"Found {total_loose_files} potentially loose .gb5 files.")
     for i, entry in enumerate(loose_files_list):
         entry_path = os.path.join(data_dir, entry)
         print_organize_progress(i, total_loose_files)
         try:
             if not os.path.exists(entry_path):
-                 errors_count += 1
                  continue
             file_id_str = entry[:-4]
             try:
                 file_id = int(file_id_str)
             except ValueError:
                  print(f"\nError: Invalid filename {entry} encountered during move loop.")
-                 errors_count += 1
                  continue
             target_subfolder_path = get_raw_data_subfolder(file_id, group_size)
             target_file_path = os.path.join(target_subfolder_path, entry)
             os.makedirs(target_subfolder_path, exist_ok=True)
             shutil.move(entry_path, target_file_path)
-            organized_count += 1
         except OSError as e:
             print(f"\nError moving file {entry_path} to {target_subfolder_path}: {e}")
-            errors_count += 1
             continue
         except Exception as e:
             print(f"\nAn unexpected error occurred organizing {entry_path}: {e}")
-            errors_count += 1
             continue
     print_organize_progress(total_loose_files, total_loose_files)
     sys.stdout.write(" Finished\n")
     sys.stdout.flush()
-    print(f"Organization finished. Organized {organized_count} files, encountered {errors_count} errors/skipped files.")
 
 def print_organize_progress(current, total):
     percent = f"{(current / total) * 100:.1f}" if total > 0 else "0.0"
