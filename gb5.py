@@ -988,7 +988,11 @@ if __name__ == '__main__':
     try:
         if args.c:
             print("\n--- Cleaning: Compressing raw data ---")
-            compress_raw_data(group_size=5000)
+            try:
+                compress_raw_data(group_size=5000)
+            except KeyboardInterrupt:
+                print("\nCompression process interrupted by user, cleanup performed.")
+                pass
             print("--- Cleaning finished ---")
 
         if args.o:
@@ -1093,10 +1097,11 @@ if __name__ == '__main__':
                     print("\nPhase 2 (Continuous Scraping) skipped based on arguments (-N or -s used without -C).")
 
         except KeyboardInterrupt:
-            print("\nCtrl+C detected. Terminating worker processes...")
-            pool.terminate()
-            pool.join()
-            print("Worker processes terminated.")
+             print("\nCtrl+C detected during fetching phases. Terminating worker processes...")
+             pool.terminate()
+             pool.join()
+             print("Worker processes terminated.")
+             pass
 
 
     except Exception as e:

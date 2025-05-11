@@ -936,12 +936,16 @@ if __name__ == '__main__':
     parser.add_argument('-o', action='store_true', help='Run Organization: Organize loose raw .gbml files into subfolders.')
     args = parser.parse_args()
 
-    print("Geekbench AI Data Scraper - Version 1.2.3")
+    print("Geekbench AI Data Scraper - Version 1.2.4")
 
     try:
         if args.c:
             print("\n--- Cleaning: Compressing raw data ---")
-            compress_raw_data(data_dir='raw_data_ai', group_size=5000)
+            try:
+                compress_raw_data(data_dir='raw_data_ai', group_size=5000)
+            except KeyboardInterrupt:
+                print("\nCompression process interrupted by user, cleanup performed.")
+                pass
             print("--- Cleaning finished ---")
 
         if args.o:
@@ -1046,10 +1050,11 @@ if __name__ == '__main__':
                     print("\nPhase 2 (Continuous Scraping) skipped based on arguments (-N or -s used without -C).")
 
         except KeyboardInterrupt:
-            print("\nCtrl+C detected. Terminating worker processes...")
-            pool.terminate()
-            pool.join()
-            print("Worker processes terminated.")
+             print("\nCtrl+C detected during fetching phases. Terminating worker processes...")
+             pool.terminate()
+             pool.join()
+             print("Worker processes terminated.")
+             pass
 
 
     except Exception as e:
